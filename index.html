@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Stockfish Studio</title>
+    <link rel="stylesheet" href="assets/css/style.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@500;600&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="top-bar">
+        <div class="brand">
+          <div class="logo">♞</div>
+          <div>
+            <h1>Stockfish Studio</h1>
+            <p>Modern Stockfish experience inspired by Chess.com</p>
+          </div>
+        </div>
+        <div class="top-actions">
+          <div class="select-group">
+            <label for="color-select">Play as</label>
+            <select id="color-select" class="control-input">
+              <option value="white">White</option>
+              <option value="black">Black</option>
+              <option value="auto">Random</option>
+            </select>
+          </div>
+          <div class="select-group">
+            <label for="time-control">Time control</label>
+            <select id="time-control" class="control-input">
+              <option value="unlimited">Unlimited</option>
+              <option value="10|0">10 + 0</option>
+              <option value="5|0">5 + 0</option>
+              <option value="3|2">3 + 2</option>
+              <option value="1|0">1 + 0</option>
+            </select>
+          </div>
+          <div class="select-group">
+            <label for="skill-level">Engine level</label>
+            <input type="range" id="skill-level" min="1" max="20" value="10" />
+            <span id="skill-level-value">10</span>
+          </div>
+          <button id="new-game" class="primary-button">New Game</button>
+        </div>
+      </header>
+      <main class="main-layout">
+        <section class="board-column">
+          <div class="clock" id="clock-black">
+            <span class="player-tag">Stockfish</span>
+            <span class="clock-display">10:00</span>
+          </div>
+          <div id="board" class="board" aria-label="Chess board"></div>
+          <div class="promotion-dialog hidden" id="promotion-dialog" aria-hidden="true">
+            <div class="dialog-content">
+              <h3>Select promotion piece</h3>
+              <div id="promotion-options" class="promotion-options"></div>
+            </div>
+          </div>
+          <div class="clock" id="clock-white">
+            <span class="player-tag">You</span>
+            <span class="clock-display">10:00</span>
+          </div>
+          <div class="board-controls">
+            <button id="undo" class="secondary-button">Undo</button>
+            <button id="hint" class="secondary-button">Hint</button>
+            <button id="flip" class="secondary-button">Flip Board</button>
+            <button id="analyze" class="secondary-button">Analysis Mode</button>
+            <button id="resign" class="text-button">Resign</button>
+          </div>
+        </section>
+        <aside class="side-column">
+          <section class="panel status-panel">
+            <header>
+              <h2>Status</h2>
+            </header>
+            <div id="game-status" class="status-message">Ready</div>
+            <div class="evaluation-bar" aria-label="Engine evaluation">
+              <div class="evaluation-fill" id="evaluation-fill">
+                <span id="evaluation-label">0.00</span>
+              </div>
+            </div>
+            <div id="best-line" class="best-line">Engine line will appear here.</div>
+            <div class="insight-row">
+              <label class="toggle">
+                <input type="checkbox" id="auto-play" checked />
+                <span>Auto engine replies</span>
+              </label>
+              <label class="toggle">
+                <input type="checkbox" id="show-legal" checked />
+                <span>Show legal moves</span>
+              </label>
+            </div>
+          </section>
+          <section class="panel move-panel">
+            <header>
+              <h2>Move History</h2>
+              <button id="download-pgn" class="text-button">Download PGN</button>
+            </header>
+            <ol id="move-list" class="move-list" aria-live="polite"></ol>
+          </section>
+          <section class="panel analysis-panel">
+            <header>
+              <h2>Live Analysis</h2>
+            </header>
+            <div id="analysis-lines" class="analysis-lines"></div>
+          </section>
+          <section class="panel captured-panel">
+            <header>
+              <h2>Captured Pieces</h2>
+            </header>
+            <div class="captured-grid">
+              <div>
+                <h3>You</h3>
+                <div id="captured-by-player" class="captured-row"></div>
+              </div>
+              <div>
+                <h3>Stockfish</h3>
+                <div id="captured-by-engine" class="captured-row"></div>
+              </div>
+            </div>
+          </section>
+        </aside>
+      </main>
+      <section class="panel editor-panel">
+        <header>
+          <h2>Board Editor</h2>
+          <div class="editor-actions">
+            <label class="toggle">
+              <input type="checkbox" id="toggle-editor" />
+              <span>Enable editor</span>
+            </label>
+            <button id="editor-clear" class="secondary-button">Clear Board</button>
+            <button id="editor-start" class="secondary-button">Starting Position</button>
+            <button id="editor-apply" class="primary-button">Apply to Game</button>
+          </div>
+        </header>
+        <div class="editor-content">
+          <div class="palette" id="editor-palette"></div>
+          <div class="editor-settings">
+            <div class="field">
+              <label for="editor-active-color">Side to move</label>
+              <select id="editor-active-color" class="control-input">
+                <option value="w">White</option>
+                <option value="b">Black</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Castling rights</label>
+              <div class="castle-grid">
+                <label><input type="checkbox" id="castle-wk" checked /> White O-O</label>
+                <label><input type="checkbox" id="castle-wq" checked /> White O-O-O</label>
+                <label><input type="checkbox" id="castle-bk" checked /> Black O-O</label>
+                <label><input type="checkbox" id="castle-bq" checked /> Black O-O-O</label>
+              </div>
+            </div>
+            <div class="field">
+              <label for="editor-en-passant">En passant target</label>
+              <input id="editor-en-passant" class="control-input" placeholder="-" />
+            </div>
+            <div class="field half">
+              <label for="editor-halfmove">Halfmove clock</label>
+              <input id="editor-halfmove" class="control-input" type="number" min="0" value="0" />
+            </div>
+            <div class="field half">
+              <label for="editor-fullmove">Fullmove number</label>
+              <input id="editor-fullmove" class="control-input" type="number" min="1" value="1" />
+            </div>
+            <div class="field">
+              <label for="editor-fen">FEN preview</label>
+              <textarea id="editor-fen" class="control-input" rows="2" readonly></textarea>
+            </div>
+            <div class="editor-status" id="editor-status"></div>
+          </div>
+        </div>
+      </section>
+      <footer class="footer">
+        <p>
+          Open the folder and double click <strong>index.html</strong> to launch Stockfish Studio.
+          No installation required.
+        </p>
+      </footer>
+    </div>
+    <script src="assets/js/chess.js"></script>
+    <script src="assets/js/stockfish.js"></script>
+    <script src="assets/js/app.js" type="module"></script>
+  </body>
+</html>
