@@ -65,7 +65,7 @@ def ensure_path_exists(path: Path, description: str) -> None:
         )
 
 
-def stage_payload(built_exe: Path) -> None:
+def stage_payload(built_exe: Path, engines: list[Path]) -> Path:
     ensure_path_exists(INDEX_SRC, "the UI entry point (index.html)")
     ensure_path_exists(ASSETS_SRC, "the UI assets directory")
 
@@ -74,7 +74,8 @@ def stage_payload(built_exe: Path) -> None:
     DIST_PAYLOAD.mkdir(parents=True)
 
     # Copy the executable under the friendly distribution name.
-    shutil.copy2(built_exe, DIST_PAYLOAD / "StockfishStudio.exe")
+    exe_dest = DIST_PAYLOAD / "StockfishStudio.exe"
+    shutil.copy2(built_exe, exe_dest)
 
     # Stage the UI assets.
     shutil.copy2(INDEX_SRC, DIST_PAYLOAD / "index.html")
@@ -84,14 +85,26 @@ def stage_payload(built_exe: Path) -> None:
             shutil.rmtree(assets_dest)
         shutil.copytree(ASSETS_SRC, assets_dest)
 
+    for engine_path in engines:
+        ensure_path_exists(engine_path, f"engine payload '{engine_path}'")
+        destination = DIST_PAYLOAD / engine_path.name
+        if engine_path.is_dir():
+            if destination.exists():
+                shutil.rmtree(destination)
+            shutil.copytree(engine_path, destination)
+        else:
+            shutil.copy2(engine_path, destination)
 
-def build_zip() -> None:
+    return exe_dest
+
+
+def build_zip(payload_root: Path) -> None:
     if DIST_ZIP.exists():
         DIST_ZIP.unlink()
 
     with zipfile.ZipFile(DIST_ZIP, "w", compression=zipfile.ZIP_DEFLATED) as archive:
-        for path in DIST_PAYLOAD.rglob("*"):
-            archive.write(path, path.relative_to(DIST_ROOT))
+        for path in payload_root.rglob("*"):
+            archive.write(path, path.relative_to(payload_root))
     print(f"Created {DIST_ZIP.relative_to(REPO_ROOT)}")
 
 
@@ -112,13 +125,23 @@ def main() -> None:
         action="store_true",
         help="Skip creating the zip archive (stages files under dist/win-x64 only)",
     )
+    parser.add_argument(
+        "--engine",
+        dest="engines",
+        action="append",
+        default=[],
+        type=Path,
+        metavar="PATH",
+        help="Additional engine binaries or folders to place next to StockfishStudio.exe",
+    )
     args = parser.parse_args()
 
     built_exe = build_desktop(args.target, args.profile)
-    stage_payload(built_exe)
+    engines = [path.expanduser().resolve() for path in args.engines]
+    payload_exe = stage_payload(built_exe, engines)
 
     if not args.skip_zip:
-        build_zip()
+        build_zip(payload_exe.parent)
 
 
 if __name__ == "__main__":

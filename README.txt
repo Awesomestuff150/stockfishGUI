@@ -9,7 +9,9 @@ it easy to build the unzip-and-run Windows experience.
 Creating the portable Windows bundle
 ------------------------------------
 Use the helper script to compile the desktop shell, gather the HTML/CSS/JS
-payload, and create the redistributable zip archive:
+payload, and create the redistributable zip archive. The generated archive now
+places `StockfishStudio.exe` at the root level so the executable is immediately
+visible after extraction:
 
 ```
 python tools/package_win64.py
@@ -27,6 +29,28 @@ experience—no installers or additional commands required.
 If you prefer a different build profile or target triple, pass
 `--profile <name>` or `--target <triple>` to the script. Use `--skip-zip` when
 you only need the staged folder at `dist/win-x64/` without recompressing it.
+
+To bundle native UCI engines alongside the app (for example, an extracted
+`stockfish.exe` build), supply one or more `--engine` arguments. Each file or
+directory is copied next to `StockfishStudio.exe` in the staged folder and in
+the resulting archive:
+
+```
+python tools/package_win64.py --engine /path/to/stockfish.exe
+```
+
+Importing custom UCI engines in the app
+---------------------------------------
+The desktop shell now lets you swap out the bundled Stockfish.js worker without
+modifying the source. Use the **Import engine** button in the top toolbar to
+select a JavaScript-based UCI engine (for example, an alternative Stockfish.js
+build or an LCZero worker). The engine is loaded directly from the chosen file
+and activated immediately after import. If you want to return to the bundled
+engine, click **Use bundled** to restore the default Stockfish.js instance.
+
+Only Web Worker compatible `.js`, `.mjs`, or `.worker` files are supported. The
+feature is designed for offline use, so the imported engine runs entirely on the
+client without needing network access.
 
 Why the binaries are not in Git
 -------------------------------

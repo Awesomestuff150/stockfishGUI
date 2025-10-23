@@ -46,6 +46,15 @@
             <input type="range" id="skill-level" min="1" max="20" value="10" />
             <span id="skill-level-value">10</span>
           </div>
+          <div class="select-group engine-loader">
+            <label for="engine-import">Engine source</label>
+            <div class="engine-loader-controls">
+              <button id="engine-import" type="button" class="secondary-button">Import engine</button>
+              <button id="engine-reset" type="button" class="text-button">Use bundled</button>
+            </div>
+            <div id="engine-name" class="engine-name">Bundled Stockfish.js</div>
+            <input type="file" id="engine-file" accept=".js,.mjs,.worker" hidden />
+          </div>
           <button id="new-game" class="primary-button">New Game</button>
         </div>
       </header>

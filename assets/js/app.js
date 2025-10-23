@@ -1,4 +1,4 @@
-'use strict';
+import { EngineController } from './engine-controller.js';
 
 const PIECE_GLYPHS = {
   w: {
@@ -25,6 +25,8 @@ const STARTING_COUNTS = {
 };
 
 const FILES = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+const DEFAULT_ENGINE_LABEL = 'Bundled Stockfish.js';
+const DEFAULT_BEST_LINE_MESSAGE = 'Engine line will appear here.';
 
 const boardEl = document.getElementById('board');
 const statusEl = document.getElementById('game-status');
@@ -41,6 +43,10 @@ const colorSelectEl = document.getElementById('color-select');
 const timeControlEl = document.getElementById('time-control');
 const skillSliderEl = document.getElementById('skill-level');
 const skillLabelEl = document.getElementById('skill-level-value');
+const engineNameEl = document.getElementById('engine-name');
+const engineImportButton = document.getElementById('engine-import');
+const engineResetButton = document.getElementById('engine-reset');
+const engineFileInput = document.getElementById('engine-file');
 const newGameButton = document.getElementById('new-game');
 const undoButton = document.getElementById('undo');
 const hintButton = document.getElementById('hint');
@@ -103,6 +109,7 @@ const state = {
   engineReady: false,
   engineWorking: false,
   engineContext: null,
+  engineSource: { type: 'bundled', label: DEFAULT_ENGINE_LABEL },
   evaluation: { cp: 0, mate: null, label: '0.00' },
   analysisLines: new Map(),
   isResigned: false,
@@ -129,19 +136,25 @@ const state = {
   }
 };
 
-const stockfish = Stockfish();
+const engineController = new EngineController({
+  onMessage: handleEngineMessage,
+  onError: handleEngineError,
+});
 
-stockfish.onmessage = (event) => {
+loadBundledEngine({ announce: false });
+
+function handleEngineMessage(event) {
   const line = typeof event === 'string' ? event : event?.data;
   if (!line) {
     return;
   }
+
   if (line === 'uciok') {
-    stockfish.postMessage('setoption name Threads value 1');
-    stockfish.postMessage(`setoption name Skill Level value ${state.skillLevel}`);
-    stockfish.postMessage('setoption name MultiPV value 3');
-    stockfish.postMessage('setoption name UCI_ShowWDL value true');
-    stockfish.postMessage('isready');
+    engineController.postMessage('setoption name Threads value 1');
+    engineController.postMessage(`setoption name Skill Level value ${state.skillLevel}`);
+    engineController.postMessage('setoption name MultiPV value 3');
+    engineController.postMessage('setoption name UCI_ShowWDL value true');
+    engineController.postMessage('isready');
     return;
   }
 
@@ -160,9 +173,96 @@ stockfish.onmessage = (event) => {
   if (line.startsWith('bestmove')) {
     handleEngineBestMove(line);
   }
-};
+}
 
-stockfish.postMessage('uci');
+function handleEngineError(error) {
+  console.error('Engine error:', error);
+  const previousSource = state.engineSource;
+  state.engineReady = false;
+  state.engineWorking = false;
+  state.engineContext = null;
+  engineController.dispose();
+  state.engineSource = null;
+  updateEngineControls();
+  const message = typeof error === 'string' ? error : error?.message ?? 'Unknown engine error.';
+
+  if (previousSource?.type === 'custom') {
+    updateStatus(`Custom engine error: ${message}. Restoring bundled Stockfish...`);
+    loadBundledEngine({ announce: false });
+    if (state.engineSource?.type === 'bundled') {
+      updateStatus(`Custom engine failed: ${message}. Bundled Stockfish restored.`);
+    } else {
+      updateStatus(
+        `Custom engine failed: ${message}. Unable to restore the bundled engine automatically.`
+      );
+    }
+    return;
+  }
+
+  updateStatus(`Engine error: ${message}`);
+}
+
+function loadBundledEngine(options = {}) {
+  const { announce = true } = options;
+  try {
+    const source = engineController.useBundled(DEFAULT_ENGINE_LABEL);
+    state.engineSource = source;
+    updateEngineControls();
+    const status = announce
+      ? 'Bundled Stockfish engine selected. Initialising...'
+      : 'Loading bundled Stockfish engine...';
+    prepareEngine(status);
+  } catch (error) {
+    console.error('Failed to load bundled engine', error);
+    updateStatus('Failed to load bundled Stockfish engine.');
+  }
+}
+
+function prepareEngine(statusMessage = 'Initialising engine...') {
+  state.engineReady = false;
+  state.engineWorking = false;
+  state.engineContext = null;
+  state.analysisLines.clear();
+  renderAnalysisLines();
+  bestLineEl.textContent = DEFAULT_BEST_LINE_MESSAGE;
+  state.evaluation = { cp: 0, mate: null, label: '0.00' };
+  evaluationLabelEl.textContent = state.evaluation.label;
+  evaluationFillEl.style.height = '50%';
+  updateEngineControls();
+  updateStatus(statusMessage);
+  engineController.postMessage('uci');
+}
+
+async function handleEngineFileSelection(event) {
+  const [file] = event.target.files ?? [];
+  if (!file) {
+    return;
+  }
+
+  try {
+    const source = await engineController.useCustomFile(file);
+    state.engineSource = source;
+    updateEngineControls();
+    prepareEngine(`Loaded ${file.name}. Initialising...`);
+  } catch (error) {
+    console.error('Failed to import engine', error);
+    const message = error?.message ?? 'Unknown error importing engine.';
+    updateStatus(`Failed to import engine: ${message}`);
+  } finally {
+    event.target.value = '';
+  }
+}
+
+function updateEngineControls() {
+  const label = state.engineSource?.label ?? 'No engine loaded';
+  engineNameEl.textContent = label;
+  if (state.engineSource?.type === 'custom') {
+    engineNameEl.title = label;
+  } else {
+    engineNameEl.removeAttribute('title');
+  }
+  engineResetButton.disabled = state.engineSource?.type === 'bundled';
+}
 
 function init() {
   buildBoard();
@@ -189,6 +289,9 @@ function bindControls() {
   analyzeButton.addEventListener('click', toggleAnalysisMode);
   resignButton.addEventListener('click', resignGame);
   downloadButton.addEventListener('click', downloadPGN);
+  engineImportButton.addEventListener('click', () => engineFileInput.click());
+  engineResetButton.addEventListener('click', () => loadBundledEngine());
+  engineFileInput.addEventListener('change', handleEngineFileSelection);
   autoPlayToggle.addEventListener('change', (event) => {
     state.autoPlay = event.target.checked;
     if (state.autoPlay && !state.analysisMode && state.game.turn() !== state.playerColor && !state.game.isGameOver()) {
@@ -531,11 +634,11 @@ function requestEngineMove() {
   }
   state.engineContext = 'move';
   state.engineWorking = true;
-  stockfish.postMessage('stop');
-  stockfish.postMessage(`position fen ${state.game.fen()}`);
-  stockfish.postMessage(`setoption name Skill Level value ${state.skillLevel}`);
+  engineController.postMessage('stop');
+  engineController.postMessage(`position fen ${state.game.fen()}`);
+  engineController.postMessage(`setoption name Skill Level value ${state.skillLevel}`);
   const moveTime = Math.max(600, state.engineMoveTime);
-  stockfish.postMessage(`go movetime ${moveTime}`);
+  engineController.postMessage(`go movetime ${moveTime}`);
 }
 
 function requestHint() {
@@ -544,10 +647,10 @@ function requestHint() {
   }
   state.engineContext = 'hint';
   state.engineWorking = true;
-  stockfish.postMessage('stop');
-  stockfish.postMessage(`position fen ${state.game.fen()}`);
+  engineController.postMessage('stop');
+  engineController.postMessage(`position fen ${state.game.fen()}`);
   const depth = Math.min(20, 10 + Math.round(state.skillLevel / 2));
-  stockfish.postMessage(`go depth ${depth}`);
+  engineController.postMessage(`go depth ${depth}`);
   updateStatus('Requesting best move hint...');
 }
 
@@ -557,9 +660,9 @@ function requestEvaluation() {
   state.engineContext = 'analysis';
   state.analysisLines.clear();
   renderAnalysisLines();
-  stockfish.postMessage('stop');
-  stockfish.postMessage(`position fen ${state.game.fen()}`);
-  stockfish.postMessage('go movetime 700');
+  engineController.postMessage('stop');
+  engineController.postMessage(`position fen ${state.game.fen()}`);
+  engineController.postMessage('go movetime 700');
 }
 
 function handleEngineInfo(line) {
@@ -841,7 +944,7 @@ function toggleAnalysisMode() {
     autoPlayToggle.checked = false;
     updateStatus('Analysis mode enabled. Engine will not move automatically.');
     stopClock();
-    stockfish.postMessage('stop');
+    engineController.postMessage('stop');
     state.engineContext = null;
     state.engineWorking = false;
   } else {
@@ -919,8 +1022,8 @@ function startNewGame() {
   stopClock();
   setTimeControl(timeControlEl.value);
   updateStatus(`New game started. You play as ${state.playerColor === 'w' ? 'White' : 'Black'}.`);
-  stockfish.postMessage('ucinewgame');
-  stockfish.postMessage(`setoption name Skill Level value ${state.skillLevel}`);
+  engineController.postMessage('ucinewgame');
+  engineController.postMessage(`setoption name Skill Level value ${state.skillLevel}`);
   if (state.playerColor === 'b') {
     requestEngineMove();
   }
@@ -1028,7 +1131,7 @@ function updateSkillState(value) {
   skillLabelEl.textContent = value;
   state.engineMoveTime = 600 + value * 160;
   if (state.engineReady) {
-    stockfish.postMessage(`setoption name Skill Level value ${value}`);
+    engineController.postMessage(`setoption name Skill Level value ${value}`);
   }
 }
 
