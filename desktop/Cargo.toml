@@ -16,7 +16,3 @@ url = "2.5"
 [dev-dependencies]
 tempfile = "3.12"
 
-[[bin]]
-name = "stockfish_studio"
-path = "src/main.rs"
-required-features = ["desktop"]
