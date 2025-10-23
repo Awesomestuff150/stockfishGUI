@@ -1,10 +1,22 @@
 [package]
 name = "stockfish_studio"
 version = "0.1.0"
-edition = "2024"
+edition = "2021"
+
+[features]
+default = []
+desktop = ["wry", "tao"]
 
 [dependencies]
-wry = { version = "0.53.5", default-features = false, features = ["devtools"] }
-tao = { version = "0.34", default-features = false, features = ["rwh_06"] }
+wry = { version = "0.53.5", default-features = false, features = ["devtools"], optional = true }
+tao = { version = "0.34", default-features = false, features = ["rwh_06"], optional = true }
 anyhow = "1.0"
 url = "2.5"
+
+[dev-dependencies]
+tempfile = "3.12"
+
+[[bin]]
+name = "stockfish_studio"
+path = "src/main.rs"
+required-features = ["desktop"]
