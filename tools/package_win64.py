@@ -58,7 +58,17 @@ def build_desktop(target: str, profile: str) -> Path:
     return exe_path
 
 
+def ensure_path_exists(path: Path, description: str) -> None:
+    if not path.exists():
+        raise SystemExit(
+            f"Expected to find {description} at {path}, but the path does not exist."
+        )
+
+
 def stage_payload(built_exe: Path) -> None:
+    ensure_path_exists(INDEX_SRC, "the UI entry point (index.html)")
+    ensure_path_exists(ASSETS_SRC, "the UI assets directory")
+
     if DIST_PAYLOAD.exists():
         shutil.rmtree(DIST_PAYLOAD)
     DIST_PAYLOAD.mkdir(parents=True)
