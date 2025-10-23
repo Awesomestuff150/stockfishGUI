@@ -177,12 +177,29 @@ function handleEngineMessage(event) {
 
 function handleEngineError(error) {
   console.error('Engine error:', error);
+  const previousSource = state.engineSource;
   state.engineReady = false;
   state.engineWorking = false;
   state.engineContext = null;
-  const message = typeof error === 'string' ? error : error?.message ?? 'Unknown engine error.';
-  updateStatus(`Engine error: ${message}`);
+  engineController.dispose();
+  state.engineSource = null;
   updateEngineControls();
+  const message = typeof error === 'string' ? error : error?.message ?? 'Unknown engine error.';
+
+  if (previousSource?.type === 'custom') {
+    updateStatus(`Custom engine error: ${message}. Restoring bundled Stockfish...`);
+    loadBundledEngine({ announce: false });
+    if (state.engineSource?.type === 'bundled') {
+      updateStatus(`Custom engine failed: ${message}. Bundled Stockfish restored.`);
+    } else {
+      updateStatus(
+        `Custom engine failed: ${message}. Unable to restore the bundled engine automatically.`
+      );
+    }
+    return;
+  }
+
+  updateStatus(`Engine error: ${message}`);
 }
 
 function loadBundledEngine(options = {}) {
@@ -244,7 +261,7 @@ function updateEngineControls() {
   } else {
     engineNameEl.removeAttribute('title');
   }
-  engineResetButton.disabled = !state.engineSource || state.engineSource.type === 'bundled';
+  engineResetButton.disabled = state.engineSource?.type === 'bundled';
 }
 
 function init() {
