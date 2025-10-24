@@ -34,9 +34,14 @@ def ensure_tool(name: str) -> None:
         raise SystemExit(f"Required tool '{name}' was not found on PATH.")
 
 
-def build_desktop(target: str, profile: str) -> Path:
+def build_desktop(
+    target: str,
+    profile: str,
+    features: list[str],
+    no_default_features: bool,
+) -> Path:
     ensure_tool("cargo")
-    run([
+    command = [
         "cargo",
         "build",
         "--package",
@@ -45,7 +50,12 @@ def build_desktop(target: str, profile: str) -> Path:
         target,
         "--profile",
         profile,
-    ], cwd=DESKTOP_CRATE)
+    ]
+    if no_default_features:
+        command.append("--no-default-features")
+    if features:
+        command.extend(["--features", ",".join(features)])
+    run(command, cwd=DESKTOP_CRATE)
 
     exe_name = "stockfish_studio.exe"
     exe_path = (
@@ -121,6 +131,19 @@ def main() -> None:
         help="Cargo profile to build (default: %(default)s)",
     )
     parser.add_argument(
+        "--feature",
+        dest="features",
+        action="append",
+        default=[],
+        metavar="NAME",
+        help="Toggle an additional Cargo feature (defaults to enabling 'desktop')",
+    )
+    parser.add_argument(
+        "--no-default-features",
+        action="store_true",
+        help="Disable the crate's default features when invoking Cargo",
+    )
+    parser.add_argument(
         "--skip-zip",
         action="store_true",
         help="Skip creating the zip archive (stages files under dist/win-x64 only)",
@@ -136,7 +159,13 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    built_exe = build_desktop(args.target, args.profile)
+    features = args.features or ["desktop"]
+    built_exe = build_desktop(
+        args.target,
+        args.profile,
+        features,
+        args.no_default_features,
+    )
     engines = [path.expanduser().resolve() for path in args.engines]
     payload_exe = stage_payload(built_exe, engines)
 
