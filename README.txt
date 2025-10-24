@@ -6,6 +6,75 @@ Stockfish chess engine. The codebase focuses on source control friendly assets s
 that no large binary payloads are checked into the repository while still making
 it easy to build the unzip-and-run Windows experience.
 
+Quickstart for the GitHub source ZIP
+------------------------------------
+If you downloaded the auto-generated `stockfishGUI-main.zip` (or similarly named)
+archive from the GitHub "Code → Download ZIP" button, follow this end-to-end
+checklist to produce the ready-to-run `StockfishStudio.exe`:
+
+1. **Install prerequisites**
+   - Install [Rust](https://www.rust-lang.org/tools/install) using the default
+     MSVC toolchain. During installation you may be prompted to add the
+     `x86_64-pc-windows-msvc` target—accept the default selection.
+   - Install [Python 3.8+](https://www.python.org/downloads/windows/) and ensure
+     the installer option “Add Python to PATH” is checked so that `python` is
+     available from the Command Prompt.
+
+2. **Unzip the project**
+   - Right-click the downloaded `stockfishGUI-main.zip` in File Explorer and
+     choose “Extract All…”.
+   - Pick a short, writable destination path such as
+     `C:\Users\<you>\Desktop\stockfishGUI-main`.
+
+3. **Open a developer command prompt inside the folder**
+   - Press `Win + R`, type `cmd`, and press Enter.
+   - Navigate to the extracted directory:
+
+     ```bat
+     cd C:\Users\<you>\Desktop\stockfishGUI-main
+     ```
+
+4. **Verify the toolchain**
+   - Confirm Rust can target Windows MSVC:
+
+     ```bat
+     rustup target list --installed
+     ```
+     Ensure `x86_64-pc-windows-msvc` appears in the output. If it does not, run
+     `rustup target add x86_64-pc-windows-msvc` and re-check.
+   - Confirm Python runs:
+
+     ```bat
+     python --version
+     ```
+
+5. **Build the desktop executable and stage the bundle**
+   - Invoke the packaging helper:
+
+     ```bat
+     python tools\package_win64.py
+     ```
+   - The script compiles the Rust desktop shell, copies the web assets, and
+     writes the staged payload to `dist\win-x64\` while also producing
+     `dist\StockfishStudio-win64.zip`.
+
+6. **Collect the distributable**
+   - Open `dist\win-x64\` in File Explorer. You should see
+     `StockfishStudio.exe`, `index.html`, and an `assets` directory.
+   - Double-click `StockfishStudio.exe` to launch the native-style shell. You
+     can optionally re-zip the folder or distribute the generated
+     `StockfishStudio-win64.zip` as-is.
+
+Troubleshooting tips
+--------------------
+- If the packaging script fails with a Rust compilation error, update your tool
+  chain via `rustup update stable` and re-run the script.
+- When Python reports “module not found: pip”, reinstall Python with the “Add to
+  PATH” option enabled and rerun the installer’s “Repair” action.
+- Antivirus products occasionally sandbox newly built executables. If the
+  generated `StockfishStudio.exe` disappears, whitelist the project directory or
+  check your antivirus quarantine folder.
+
 Creating the portable Windows bundle
 ------------------------------------
 Use the helper script to compile the desktop shell, gather the HTML/CSS/JS
